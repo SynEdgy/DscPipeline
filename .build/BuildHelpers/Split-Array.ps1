@@ -1,15 +1,20 @@
 function Split-Array
 {
-    param(
-        [Parameter(Mandatory)]
-        [System.Collections.IEnumerable]$List,
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IEnumerable]
+        $List,
 
-        [Parameter(Mandatory, ParameterSetName = 'ChunkSize')]
-        [int]$ChunkSize,
+        [Parameter(Mandatory = $true, ParameterSetName = 'ChunkSize')]
+        [int]
+        $ChunkSize,
         
-        [Parameter(Mandatory, ParameterSetName = 'ChunkCount')]
-        [int]$ChunkCount
+        [Parameter(Mandatory = $true, ParameterSetName = 'ChunkCount')]
+        [int]
+        $ChunkCount
     )
+
     $aggregateList = @()
     
     if ($ChunkCount)
@@ -25,7 +30,8 @@ function Split-Array
 
         $aggregateList += @(, $List[$start..$end])
         $start = $end + 1
-    }    
+    }
+
     if ($leftOver -gt 0)
     {
         $aggregateList += @(, $List[$start..($end + $leftOver)])

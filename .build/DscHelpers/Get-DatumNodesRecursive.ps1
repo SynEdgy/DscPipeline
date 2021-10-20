@@ -1,49 +1,52 @@
+using module datum
+
 function Get-DatumNodesRecursive
 {
-    param(
-        [object[]]$Nodes,
-
-        [int]$Depth
+    [CmdletBinding()]
+    param
+    (
+        [Parameter()]
+        [object]
+        $AllDatumNodes = (Get-variable -Name Datum -scope 1 -ValueOnly).AllNodes
     )
+
+    $datumContainers = [System.Collections.Queue]::new()
     
-    if ($Depth -gt 0)
-    {
-        $expandedNodes = foreach ($node in $Nodes)
+    Write-Verbose -Message "Inspecting [$($AllDatumNodes.Name -join ', ')]"
+    $AllDatumNodes.PSObject.Properties.Where({$_.MemberType -eq 'ScriptProperty'}).ForEach({
+        Write-Verbose -Message "Working on $($_.Name)"
+        $val = $_.Value | Add-Member -MemberType NoteProperty -Name Name -Value $_.Name -PassThru -ErrorAction Ignore -Force
+        if ($val -is [FileProvider])
         {
-            foreach ($propertyName in ($node.PSObject.Properties | Where-Object MemberType -eq 'ScriptProperty').Name)
-            {
-                $node | ForEach-Object {
-                    $newNode = $_."$propertyName"
-                    if ($newNode -is [System.Collections.IDictionary]) {
-                        if (-not $newNode.Contains('Name')) {
-                            if ($propertyName -eq 'AllNodes') {
-                                $newNode.Add('Name', '*')
-                            }
-                            else {
-                                $newNode.Add('Name', $propertyName)
-                            }
-                        }
-                        
-                        [hashtable]$newNode
-                    }
-                    else
-                    {
-                        $newNode
-                    }
-                }
-            }
-        }
-        
-        if ($expandedNodes)
-        {
-            $expandedNodes = FlattenArray -InputObject $expandedNodes
-            $Depth--
-            $expandedNodes | Where-Object { $_ -is [System.Collections.IDictionary] }
-            Get-DatumNodesRecursive -Nodes $expandedNodes -Depth $Depth
+            Write-Verbose -Message "Adding $($val.Name) to the queue."
+            $datumContainers.Enqueue($val)
         }
         else
         {
-            $Depth = 0
+            Write-Verbose -Message "Adding Node $($_.Name)."
+            $val['Name'] = $_.Name
+            $val
         }
+    })
+
+    while ($datumContainers.Count -gt 0)
+    {
+        $currentContainer = $datumContainers.Dequeue()
+        Write-Verbose -Message "Working on Container '$($currentContainer.Name)'."
+        
+        $currentContainer.PSObject.Properties.Where({$_.MemberType -eq 'ScriptProperty'}).ForEach({
+            $val = $currentContainer.($_.Name)
+            $val | Add-Member -MemberType NoteProperty -Name Name -Value $_.Name -ErrorAction Ignore
+            if ($val -is [FileProvider])
+            {
+                Write-Verbose -Message "Found Container $($_.Name)"                
+                $datumContainers.Enqueue($val)
+            }
+            else
+            {
+                Write-Verbose -Message "Found Node $($_.Name)"                
+                $val
+            }
+        })
     }
 }

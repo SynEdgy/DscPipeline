@@ -1,5 +1,5 @@
 ---
-
+BuiltModuleSubDirectory: AvoidPSPathOverlap
 ####################################################
 #       Sampler Pipeline Configuration             #
 ####################################################
@@ -7,8 +7,8 @@
 BuildWorkflow:
   '.': # "." is the default Invoke-Build workflow. It is called when no -Tasks is specified to the build.ps1
     - build
-    - test
-
+    - PostBuild
+    
   init: |
     {
         if ($PSVersionTable.PSEdition -ne 'Desktop') {
@@ -18,30 +18,19 @@ BuildWorkflow:
 
   build:
     - Init
-    - CleanBuildOutput
-    - SetPsModulePath
+    - Clean
     - LoadDatumConfigData
     - TestConfigData
-    - VersionControl
     - CompileDatumRsop
     - TestDscResources
     - CompileRootConfiguration
     - CompileRootMetaMof
-
-  # Defining test task to be run when invoking `./build.ps1 -Tasks test`
-  test:
-    - Pester_Tests_Stop_On_Fail
-
-  # Use this task when you have multiple parallel tests, which produce multiple
-  # code coverage files and needs to get merged into one file.
-  #merge:
-    #- Merge_CodeCoverage_Files
-
-  publish:
-    - publish_module_to_gallery
-    - Publish_Release_To_GitHub
-    - Publish_GitHub_Wiki_Content
-    - Create_ChangeLog_GitHub_PR
+  
+  pack:
+    - NewMofChecksums
+    - CompressModulesWithChecksum
+    - Compress_Artifact_Collections
+    - TestBuildAcceptance
 
 ####################################################
 #       PESTER  Configuration                      #
@@ -88,8 +77,8 @@ Pester:
 ModuleBuildTasks:
   Sampler:
     - '*.build.Sampler.ib.tasks'
-  Sampler.GitHubTasks:
-    - '*.ib.tasks'
+  # Sampler.GitHubTasks:
+  #   - '*.ib.tasks'
 
 
 # Invoke-Build Header to be used to 'decorate' the terminal output of the tasks.

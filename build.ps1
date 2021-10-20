@@ -64,6 +64,10 @@ param
     [System.String[]]
     $Tasks = '.',
 
+    [Parameter(Position = 1)]
+    [ScriptBlock]
+    $Filter = {},
+
     [Parameter()]
     [System.String]
     $CodeCoverageThreshold = '',

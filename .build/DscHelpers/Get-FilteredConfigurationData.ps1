@@ -1,39 +1,53 @@
-function Get-FilteredConfigurationData {
-    param(
+function Get-FilteredConfigurationData
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter()]
         [ScriptBlock]
         $Filter = {},
 
+        [Parameter()]
         [int]
-        $CurrentJobNumber,
+        $CurrentJobNumber = 1,
 
+        [Parameter()]
         [int]
         $TotalJobCount = 1,
 
+        [Parameter()]
+        [Object]
         $Datum = $(Get-variable Datum -ValueOnly -ErrorAction Stop)
     )
 
-    $allNodes = @(Get-DatumNodesRecursive -Nodes $Datum.AllNodes -Depth 20)
-    $totalNodeCount = $allNodes.Count
-    
-    Write-Host "Node count: $($allNodes.Count)"
-    
-    if($Filter.ToString() -ne ([System.Management.Automation.ScriptBlock]::Create({})).ToString()) {
-        Write-Host "Filter: $($Filter.ToString())"
-        $allNodes = [System.Collections.Hashtable[]]$allNodes.Where($Filter)
-        Write-Host "Node count after applying filter: $($allNodes.Count)"
+    if ($null -eq $Filter)
+    {
+        $Filter = {}
     }
 
-    if (-not $allNodes.Count)
+    $allDatumNodes = [System.Collections.Hashtable[]]@(Get-DatumNodesRecursive)
+    $totalNodeCount = $allDatumNodes.Count
+    
+    Write-Verbose -Message "Node count: $($allDatumNodes.Count)"
+    
+    if ($Filter.ToString() -ne {}.ToString())
     {
-        Write-Error "No node data found. There are in total $totalNodeCount nodes defined, but no node was selected. You may want to verify the filter: '$Filter'."
+        Write-Verbose -Message "Filter: $($Filter.ToString())"
+        $allDatumNodes = [System.Collections.Hashtable[]]$allDatumNodes.Where($Filter)
+        Write-Verbose -Message "Node count after applying filter: $($allDatumNodes.Count)"
+    }
+
+    if (-not $allDatumNodes.Count)
+    {
+        Write-Error -Message "No node data found. There are in total $totalNodeCount nodes defined, but no node was selected. You may want to verify the filter: '$Filter'."
     }
 
     $CurrentJobNumber--
-    $allNodes = Split-Array -List $allNodes -ChunkCount $TotalJobCount
-    $allNodes = $allNodes[$CurrentJobNumber]
+    $allDatumNodes = Split-Array -List $allDatumNodes -ChunkCount $TotalJobCount
+    $allDatumNodes = $allDatumNodes[$CurrentJobNumber]
 
     return @{
-        AllNodes = $allNodes
+        AllNodes = $allDatumNodes
         Datum = $Datum
     }
 }
