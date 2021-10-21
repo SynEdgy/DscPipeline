@@ -77,8 +77,8 @@ Pester:
 ModuleBuildTasks:
   Sampler:
     - '*.build.Sampler.ib.tasks'
-  # Sampler.GitHubTasks:
-  #   - '*.ib.tasks'
+  Sampler.DscPipeline:
+    - '*.ib.tasks'
 
 
 # Invoke-Build Header to be used to 'decorate' the terminal output of the tasks.

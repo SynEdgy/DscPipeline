@@ -1,9 +1,8 @@
 Import-Module -Name DscBuildHelpers
 $Error.Clear()
 
-$buildVersion = $env:BHBuildVersion
-if (-not $buildVersion) {
-    $buildVersion = '0.0.0'
+if (-not $ModuleVersion) {
+    $ModuleVersion = '0.0.0'
 }
 
 $environment = $node.Environment
@@ -19,16 +18,16 @@ configuration "RootConfiguration"
     $module = Get-Module -Name PSDesiredStateConfiguration
     & $module {
         param(
-            [string]$BuildVersion,
+            [string]$ModuleVersion,
             [string]$Environment
         ) 
-        $Script:PSTopConfigurationName = "MOF_$($Environment)_$($BuildVersion)"
-    } $buildVersion, $environment
+        $Script:PSTopConfigurationName = "MOF_$($Environment)_$($ModuleVersion)"
+    } $ModuleVersion, $environment
 
     node $ConfigurationData.AllNodes.NodeName {
         Write-Host "`r`n$('-'*75)`r`n$($Node.Name) : $($Node.NodeName) : $(&$module { $Script:PSTopConfigurationName })" -ForegroundColor Yellow
         
-        $configurationNames = Resolve-NodeProperty -PropertyPath 'Configurations'
+        $configurationNames = Resolve-NodeProperty -PropertyPath 'Configurations' -Node $Node
         $global:node = $node #this makes the node variable being propagated into the configurations
 
         foreach ($configurationName in $configurationNames) {
@@ -71,6 +70,7 @@ configuration "RootConfiguration"
             }
         }
     }
+    $global:node = $node = $null
 }
 
 $cd = @{}

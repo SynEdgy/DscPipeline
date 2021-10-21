@@ -7,6 +7,7 @@
         }
     }
 
+    'powershell-yaml'           = 'latest'
     InvokeBuild                 = 'latest'
     PSScriptAnalyzer            = 'latest'
     Pester                      = '4.10.1'
@@ -15,12 +16,18 @@
     ChangelogManagement         = 'latest'
     Sampler                     = 'latest'
     'Sampler.GitHubTasks'       = 'latest'
+    'Sampler.DscPipeline'       = @{
+        version = 'latest'
+        Parameters = @{
+            AllowPrerelease = $true
+        }
+    }
+    
     MarkdownLinkCheck           = 'latest'
     'DscResource.AnalyzerRules' = 'latest'
     
     DscBuildHelpers             = 'latest'
     Datum                       = '0.39.0'
-    'powershell-yaml'           = 'latest'
     ProtectedData               = 'latest'
     'Datum.ProtectedData'       = 'latest'
     'Datum.InvokeCommand'       = 'latest'
