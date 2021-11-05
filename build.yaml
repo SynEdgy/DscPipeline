@@ -15,6 +15,12 @@ BuildWorkflow:
             Write-Error "The build script required Windows PowerShell 5.1 to work" 
         }
     }
+    
+  datum:
+    - Init
+    - Clean
+    - LoadDatumConfigData
+    - TestConfigData
 
   build:
     - Init
