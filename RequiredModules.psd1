@@ -20,9 +20,10 @@
         version = 'latest'
         Parameters = @{
             AllowPrerelease = $true
+            Repository = 'PSGallery'
         }
     }
-    
+
     MarkdownLinkCheck           = 'latest'
     'DscResource.AnalyzerRules' = 'latest'
     
