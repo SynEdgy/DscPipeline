@@ -133,6 +133,32 @@ try
         $parameterToDefault = $MyInvocation.MyCommand.Parameters.Keys
     }
 
+    if ($resolveDependencyDefaults.Keys -contains 'GalleryUsername' -and -not ([string]::IsNullOrEmpty($resolveDependencyDefaults['GalleryUsername'])))
+    {
+        $GalleryPassword = if ($Env:GalleryPassword)
+        {
+            $Env:GalleryPassword
+        }
+        elseif ($resolveDependencyDefaults['GalleryPassword'])
+        {
+            $resolveDependencyDefaults['GalleryPassword']
+        }
+        else
+        {
+            throw 'Could not find password in environment variable or Resolve-Dependency.psd1'    
+        }
+
+        Write-Host -ForegroundColor Magenta "PSBoundParameters >>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+    
+        $PSBoundParameters['GalleryCredential'] = [pscredential]::new(
+            $resolveDependencyDefaults['GalleryUsername'],
+            (ConvertTo-SecureString -AsPlainText -Force $GalleryPassword)
+        )
+
+        Set-Variable -Name 'Credential' -value $PSBoundParameters['GalleryCredential'] -Force -ErrorAction 'SilentlyContinue'
+    }
+
+
     # Set the parameters available in the Parameter Set, or it's not possible to choose yet, so all parameters are an option.
     foreach ($parameterName in $parameterToDefault)
     {
@@ -223,7 +249,18 @@ Write-Progress -Activity 'Bootstrap:' -PercentComplete 10 -CurrentOperation "Ens
 # Fail if the given PSGallery is not registered.
 $previousGalleryInstallationPolicy = (Get-PSRepository -Name $Gallery -ErrorAction 'Stop').InstallationPolicy
 
-Set-PSRepository -Name $Gallery -InstallationPolicy 'Trusted' -ErrorAction 'Ignore'
+$setPSReposParams = @{
+    Name = $Gallery
+    InstallationPolicy = 'Trusted'
+    ErrorAction = 'Ignore'
+}
+
+if ($PSBoundParameters.ContainsKey('GalleryCredential'))
+{
+    $setPSReposParams['Credential'] = $PSBoundParameters['GalleryCredential']
+}
+
+Set-PSRepository @setPSReposParams
 
 try
 {
@@ -232,7 +269,7 @@ try
     # Ensure the module is loaded and retrieve the version you have.
     $powerShellGetVersion = (Import-Module -Name 'PowerShellGet' -PassThru -ErrorAction 'SilentlyContinue').Version
 
-    Write-Verbose -Message "Bootstrap: The PowerShellGet version is $powerShellGetVersion"
+    Write-Verbose -Message "Bootstrap: The PowerShellGet version is $powerShellGetVersion."
 
     # Versions below 2.0 are considered old, unreliable & not recommended
     if (-not $powerShellGetVersion -or ($powerShellGetVersion -lt [System.Version] '2.0' -and -not $AllowOldPowerShellGetModule))
@@ -262,10 +299,10 @@ try
 
             'GalleryCredential'
             {
-                $installPowerShellGetParameters.Add('Credential', $GalleryCredential)
+                $installPowerShellGetParameters.Add('Credential', $PSBoundParameters['GalleryCredential'])
             }
         }
-
+        
         Write-Progress -Activity 'Bootstrap:' -PercentComplete 60 -CurrentOperation 'Installing newer version of PowerShellGet'
 
         Install-Module @installPowerShellGetParameters
@@ -318,6 +355,11 @@ try
                 AllowClobber       = $true
             }
 
+            if ($PSBoundParameters.keys -contains 'GalleryCredential')
+            {
+                $installPSDependParameters.Add('Credential', $PSBoundParameters['GalleryCredential'])
+            }
+
             if ($MinimumPSDependVersion)
             {
                 $installPSDependParameters.Add('MinimumVersion', $MinimumPSDependVersion)
@@ -341,6 +383,11 @@ try
             if ($MinimumPSDependVersion)
             {
                 $saveModuleParameters.add('MinimumVersion', $MinimumPSDependVersion)
+            }
+            
+            if ($PSBoundParameters.keys -contains 'GalleryCredential')
+            {
+                $saveModuleParameters.Add('Credential', $PSBoundParameters['GalleryCredential'])
             }
 
             Write-Progress -Activity 'Bootstrap:' -PercentComplete 75 -CurrentOperation "Saving & Importing PSDepend from $Gallery to $Scope"
@@ -381,6 +428,11 @@ try
                 Path       = $PSDependTarget
                 Force      = $true
             }
+            
+            if ($PSBoundParameters.keys -contains 'GalleryCredential')
+            {
+                $SaveModuleParam.Add('Credential', $PSBoundParameters['GalleryCredential'])
+            }
 
             Save-Module @SaveModuleParam
         }
@@ -403,7 +455,13 @@ try
             Path  = $DependencyFile
         }
 
-        # TODO: Handle when the Dependency file is in YAML, and -WithYAML is specified.
+        if ($PSBoundParameters.keys -contains 'GalleryCredential')
+        {
+            $psDependParameters.Add('Credentials', @{
+                GalleryCredential = $PSBoundParameters['GalleryCredential']
+            })
+        }
+
         Invoke-PSDepend @psDependParameters
     }
 
@@ -413,7 +471,17 @@ try
 }
 finally
 {
+    $setPSReposParams = @{
+        InstallationPolicy  = $previousGalleryInstallationPolicy
+        Name                = $Gallery
+    }
+
+    if ($PSBoundParameters.keys -contains 'GalleryCredential')
+    {
+        $setPSReposParams.Add('Credential', $PSBoundParameters['GalleryCredential'])
+    }
+
     # Reverting the Installation Policy for the given gallery
-    Set-PSRepository -Name $Gallery -InstallationPolicy $previousGalleryInstallationPolicy
+    Set-PSRepository @setPSReposParams
     Write-Verbose -Message "Project Bootstrapped, returning to Invoke-Build"
 }
